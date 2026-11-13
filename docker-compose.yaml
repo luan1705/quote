@@ -1,0 +1,11 @@
+services:
+  quote:
+    build: .
+    image: ${QUOTE_IMAGE}
+    container_name: ${QUOTE_CONTAINER_NAME}
+    command: ["main.py"]
+    env_file: .env
+    init: true
+    restart: always
+    volumes:
+      - ./streaming/list.py:/app/streaming/list.py:ro

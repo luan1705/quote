@@ -1,0 +1,3 @@
+ssi-sdk
+redis
+python-dotenv
