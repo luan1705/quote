@@ -61,7 +61,9 @@ def on_market_data(msg):
 
         quote = format_message(data)
         if quote:
-            REDIS.publish(CHANNEL_ASSET, json.dumps(quote, ensure_ascii=False))
+            payload = json.dumps(quote, ensure_ascii=False)
+            REDIS.publish(CHANNEL_ASSET, payload)
+            REDIS.hset("quote", quote["symbol"], payload)
     except Exception:
         logger.exception("Quote message error")
 
