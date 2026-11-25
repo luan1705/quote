@@ -4,6 +4,9 @@ from dataclasses import asdict
 
 from ssi_sdk import Auth, Stream
 from streaming.config import SSI_CONFIG, CHANNEL_ASSET, REDIS
+from streaming.list import HOSE, HNX, UPCOM, BOND
+
+PRICE_DIV_1000_SYMBOLS = set(HOSE + HNX + UPCOM + BOND)
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +18,6 @@ def format_message(data):
     if not symbol or not trading_time:
         return None
 
-    # SSI V3: 2026/11/13 14:21:46 -> 2026-11-13 14:21:46
     time = str(trading_time)[:19].replace("/", "-")
 
     bid_prices = data.get("bid_prices") or []
@@ -23,22 +25,29 @@ def format_message(data):
     ask_prices = data.get("ask_prices") or []
     ask_volumes = data.get("ask_volumes") or []
 
-    return {
+    def price(v):
+        if v is None:
+            return None
+        return v / 1000 if symbol in PRICE_DIV_1000_SYMBOLS else v
+
+    result = {
         "symbol": symbol,
         "time": time,
-        "buyPrice1": bid_prices[0] / 1000 if len(bid_prices) > 0 else None,
+        "buyPrice1": price(bid_prices[0]) if len(bid_prices) > 0 else None,
         "buyVol1": bid_volumes[0] if len(bid_volumes) > 0 else None,
-        "buyPrice2": bid_prices[1] / 1000 if len(bid_prices) > 1 else None,
+        "buyPrice2": price(bid_prices[1]) if len(bid_prices) > 1 else None,
         "buyVol2": bid_volumes[1] if len(bid_volumes) > 1 else None,
-        "buyPrice3": bid_prices[2] / 1000 if len(bid_prices) > 2 else None,
+        "buyPrice3": price(bid_prices[2]) if len(bid_prices) > 2 else None,
         "buyVol3": bid_volumes[2] if len(bid_volumes) > 2 else None,
-        "sellPrice1": ask_prices[0] / 1000 if len(ask_prices) > 0 else None,
+        "sellPrice1": price(ask_prices[0]) if len(ask_prices) > 0 else None,
         "sellVol1": ask_volumes[0] if len(ask_volumes) > 0 else None,
-        "sellPrice2": ask_prices[1] / 1000 if len(ask_prices) > 1 else None,
+        "sellPrice2": price(ask_prices[1]) if len(ask_prices) > 1 else None,
         "sellVol2": ask_volumes[1] if len(ask_volumes) > 1 else None,
-        "sellPrice3": ask_prices[2] / 1000 if len(ask_prices) > 2 else None,
+        "sellPrice3": price(ask_prices[2]) if len(ask_prices) > 2 else None,
         "sellVol3": ask_volumes[2] if len(ask_volumes) > 2 else None,
     }
+
+    return {k: v for k, v in result.items() if v is not None}
 
 
 def on_market_data(msg):
@@ -52,7 +61,9 @@ def on_market_data(msg):
 
         quote = format_message(data)
         if quote:
-            REDIS.publish(CHANNEL_ASSET, json.dumps(quote, ensure_ascii=False))
+            payload = json.dumps(quote, ensure_ascii=False)
+            REDIS.publish(CHANNEL_ASSET, payload)
+            REDIS.hset("quote", quote["symbol"], payload)
     except Exception:
         logger.exception("Quote message error")
 
