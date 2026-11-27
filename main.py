@@ -2,7 +2,8 @@ from streaming.list import HOSE, HNX, UPCOM, DERIVATIVES, BOND
 from streaming.quote import stream_symbol_quote
 
 
-SYMBOLS = HOSE + HNX + UPCOM + DERIVATIVES + BOND
+# SYMBOLS = HOSE + HNX + UPCOM + DERIVATIVES + BOND
+SYMBOLS = ["*"]
 
 STREAMS = {
     "symbol-quote": (stream_symbol_quote, SYMBOLS),
